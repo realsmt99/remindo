@@ -136,6 +136,11 @@ final class Coordinator {
 
         if let pending = store.attentionFocus(excludingHost: bundle) {
             remind(pending, kind: .reminder, duration: 4.5)
+        } else if let previous, previous != bundle,
+                  let blocked = store.sessions.values.filter({ $0.isBlocked && $0.hostBundleID == previous })
+                      .min(by: { $0.outranks($1) }) {
+            // You saw the prompt but left without answering: one nudge on the way out.
+            remind(blocked, kind: .reminder, duration: 4.5, force: true)
         } else if let previous, previous != bundle, let working = store.workingSession(hostBundleID: previous) {
             // You just left the agent's app while it's still cooking.
             remind(working, kind: .leftWhileWorking, duration: 3.2, force: true)
