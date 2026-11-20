@@ -88,6 +88,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(toggle("Repeat reminders for approvals", prefs.repeatReminders, #selector(toggleRepeat)))
         menu.addItem(toggle("Remind me even inside the agent's app", prefs.remindWhenHostFrontmost, #selector(toggleHostFront)))
         menu.addItem(toggle("Play sounds", prefs.soundsEnabled, #selector(toggleSounds)))
+        menu.addItem(toggle("Arcade style (retro pixels)", prefs.arcadeStyle, #selector(toggleArcade)))
 
         let display = NSMenuItem(title: "Show on", action: nil, keyEquivalent: "")
         let displayMenu = NSMenu()
@@ -156,6 +157,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     @objc private func toggleRepeat() { prefs.repeatReminders.toggle() }
     @objc private func toggleHostFront() { prefs.remindWhenHostFrontmost.toggle() }
     @objc private func toggleSounds() { prefs.soundsEnabled.toggle() }
+    @objc private func toggleArcade() { prefs.arcadeStyle.toggle() }
 
     @objc private func displayNotch() {
         prefs.displayMode = .notch

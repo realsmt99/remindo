@@ -68,7 +68,12 @@ final class NotchViewModel: ObservableObject {
         prefs.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                DispatchQueue.main.async { MainActor.assumeIsolated { self?.recompute() } }
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        self?.objectWillChange.send()  // style changes redraw the notch
+                        self?.recompute()
+                    }
+                }
             }
             .store(in: &cancellables)
     }

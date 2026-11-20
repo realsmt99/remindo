@@ -18,6 +18,7 @@ final class Preferences: ObservableObject {
         static let hostFront = "remindWhenHostFrontmost"
         static let repeatReminders = "repeatReminders"
         static let display = "displayMode"
+        static let arcade = "arcadeStyle"
         static let port = "port"
     }
 
@@ -28,6 +29,12 @@ final class Preferences: ObservableObject {
     @Published var showLiveActivity: Bool { didSet { defaults.set(showLiveActivity, forKey: Key.live) } }
     @Published var remindWhenHostFrontmost: Bool { didSet { defaults.set(remindWhenHostFrontmost, forKey: Key.hostFront) } }
     @Published var repeatReminders: Bool { didSet { defaults.set(repeatReminders, forKey: Key.repeatReminders) } }
+    @Published var arcadeStyle: Bool {
+        didSet {
+            defaults.set(arcadeStyle, forKey: Key.arcade)
+            NotchLayout.arcade = arcadeStyle
+        }
+    }
     @Published var displayMode: DisplayMode { didSet { defaults.set(displayMode.rawValue, forKey: Key.display) } }
 
     /// Fixed for the life of the process: `defaults write dev.remindo.Remindo port 47474`.
@@ -41,6 +48,7 @@ final class Preferences: ObservableObject {
             Key.hostFront: false,
             Key.repeatReminders: true,
             Key.display: DisplayMode.notch.rawValue,
+            Key.arcade: true,
             Key.port: 47474,
         ])
         soundsEnabled = defaults.bool(forKey: Key.sounds)
@@ -48,6 +56,8 @@ final class Preferences: ObservableObject {
         showLiveActivity = defaults.bool(forKey: Key.live)
         remindWhenHostFrontmost = defaults.bool(forKey: Key.hostFront)
         repeatReminders = defaults.bool(forKey: Key.repeatReminders)
+        arcadeStyle = defaults.bool(forKey: Key.arcade)
+        NotchLayout.arcade = defaults.bool(forKey: Key.arcade)
         displayMode = DisplayMode(rawValue: defaults.string(forKey: Key.display) ?? "") ?? .notch
         let raw = defaults.integer(forKey: Key.port)
         port = (1024...65535).contains(raw) ? UInt16(raw) : 47474

@@ -49,6 +49,20 @@ enum SnapshotRenderer {
             .background(Color.black)
             ok = write(frames, to: dir.appendingPathComponent("spark-\(state.rawValue).png")) && ok
         }
+        // Arcade lane frames: the chase over time, then the other states.
+        let lanes = VStack(spacing: 10) {
+            ForEach(0..<4, id: \.self) { i in
+                Canvas { ctx, sz in ArcadeStrip.paint(&ctx, size: sz, t: 1000 + Double(i) * 1.1, state: .working, tint: Palette.claude) }
+                    .frame(width: 380, height: 20)
+            }
+            ForEach([AgentState.approval, .done, .error], id: \.self) { st in
+                Canvas { ctx, sz in ArcadeStrip.paint(&ctx, size: sz, t: 1000.2, state: st, tint: Palette.claude) }
+                    .frame(width: 380, height: 20)
+            }
+        }
+        .padding(16)
+        .background(Color.black)
+        ok = write(lanes, to: dir.appendingPathComponent("arcade-lanes.png")) && ok
         return ok
     }
 

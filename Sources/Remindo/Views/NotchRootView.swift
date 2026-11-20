@@ -70,7 +70,8 @@ struct NotchContent: View {
                 Color.clear
             case .compact:
                 if let s = store.focus {
-                    CompactView(session: s, extra: max(0, store.liveCount - 1), metrics: model.metrics)
+                    CompactView(session: s, extra: max(0, store.liveCount - 1), metrics: model.metrics,
+                                arcade: model.prefs.arcadeStyle)
                         .contentShape(Rectangle())
                         .onTapGesture { actions.focus(s) }
                         .transition(.opacity.animation(.easeOut(duration: 0.2)))
@@ -93,13 +94,20 @@ struct CompactView: View {
     let session: AgentSession
     let extra: Int
     let metrics: NotchMetrics
+    var arcade = false
 
     var body: some View {
         HStack(spacing: 0) {
             // Left wing: the spark, plus a "+N" badge when more agents want you.
             ZStack(alignment: .bottomTrailing) {
-                SparkView(state: session.state, size: 17, tint: session.tint, celebrateOnAppear: false)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Group {
+                    if arcade {
+                        PixelSpark(state: session.state, size: 18, tint: session.tint)
+                    } else {
+                        SparkView(state: session.state, size: 17, tint: session.tint, celebrateOnAppear: false)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if extra > 0 {
                     Text("+\(extra)")
                         .font(.system(size: 8.5, weight: .heavy, design: .rounded))
@@ -113,7 +121,7 @@ struct CompactView: View {
             }
             .frame(width: NotchLayout.wing, height: metrics.notchSize.height)
             Spacer(minLength: metrics.notchSize.width)
-            CompactAccessory(session: session)
+            CompactAccessory(session: session, arcade: arcade)
                 .frame(width: NotchLayout.wing, height: metrics.notchSize.height)
         }
         .frame(height: metrics.notchSize.height)
@@ -122,14 +130,15 @@ struct CompactView: View {
 
 struct CompactAccessory: View {
     let session: AgentSession
+    var arcade = false
 
     var body: some View {
         Group {
             if session.state == .working {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(Format.shortClock(session.elapsed(at: context.date) ?? 0))
-                        .font(.system(size: 11.5, weight: .semibold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.85))
+                        .font(arcade ? .arcade(11) : .system(size: 11.5, weight: .semibold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(arcade ? Palette.claude : .white.opacity(0.85))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
@@ -154,18 +163,21 @@ struct PeekView: View {
 
     var body: some View {
         let bandWidth = NotchLayout.bodySize(.peek, metrics: model.metrics, rows: 1).width
+        let arcade = model.prefs.arcadeStyle
         if let banner = model.banner {
             PeekCard(metrics: model.metrics, bandWidth: bandWidth, leading: "Remindo", trailing: "",
-                     state: banner.state, tint: Palette.claude, title: banner.title, shimmer: false,
-                     subtitle: banner.subtitle, hostBundleID: nil, celebrate: true)
+                     state: banner.state, tint: Palette.claude,
+                     title: arcade ? banner.title.uppercased() : banner.title, shimmer: false,
+                     subtitle: banner.subtitle, hostBundleID: nil, celebrate: true, arcade: arcade)
         } else if let id = model.peekSessionID, let s = store.sessions[id] {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 PeekCard(metrics: model.metrics, bandWidth: bandWidth, leading: s.projectName,
                          trailing: StatusText.time(s, now: context.date),
-                         state: s.state, tint: s.tint, title: StatusText.title(s, kind: model.peekKind),
+                         state: s.state, tint: s.tint,
+                         title: arcade ? StatusText.arcadeTitle(s, kind: model.peekKind) : StatusText.title(s, kind: model.peekKind),
                          shimmer: s.state == .working, subtitle: StatusText.subtitle(s, kind: model.peekKind),
                          hostBundleID: s.hostBundleID,
-                         celebrate: model.peekKind == .event || model.peekKind == .glance)
+                         celebrate: model.peekKind == .event || model.peekKind == .glance, arcade: arcade)
             }
             .contentShape(Rectangle())
             .onTapGesture { actions.focus(s) }
@@ -187,6 +199,7 @@ struct PeekCard: View {
     let hostBundleID: String?
     /// Play the "finished" burst when the card appears (fresh news only, not reminders).
     let celebrate: Bool
+    var arcade = false
 
     var body: some View {
         let wing = max(40, (bandWidth - metrics.notchSize.width) / 2 - 24)
@@ -205,18 +218,24 @@ struct PeekCard: View {
             .frame(height: metrics.notchSize.height)
 
             HStack(alignment: .center, spacing: 14) {
-                SparkView(state: state, size: 38, tint: tint, celebrateOnAppear: celebrate)
-                    .frame(width: 46, height: 46)
+                Group {
+                    if arcade {
+                        PixelSpark(state: state, size: 36, tint: tint)
+                    } else {
+                        SparkView(state: state, size: 38, tint: tint, celebrateOnAppear: celebrate)
+                    }
+                }
+                .frame(width: 46, height: 46)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Group {
                         if shimmer {
                             ShimmerText(text: title)
                         } else {
-                            Text(title).foregroundStyle(.white)
+                            Text(title).foregroundStyle(arcade ? arcadeColor : .white)
                         }
                     }
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(arcade ? .arcade(14) : .system(size: 15, weight: .semibold, design: .rounded))
                     .lineLimit(1)
 
                     if let subtitle, !subtitle.isEmpty {
@@ -231,8 +250,22 @@ struct PeekCard: View {
                 HostIcon(bundleID: hostBundleID, size: 24)
             }
             .padding(.horizontal, 18)
-            .padding(.bottom, 8)
+            .padding(.bottom, arcade ? 2 : 8)
             .frame(maxHeight: .infinity)
+
+            if arcade {
+                ArcadeStrip(state: state, tint: tint)
+                    .frame(height: 20)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 10)
+            }
+        }
+    }
+
+    private var arcadeColor: Color {
+        switch state {
+        case .done, .error, .approval, .waiting: return state.accent
+        default: return .white
         }
     }
 }
@@ -303,7 +336,13 @@ struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            SparkView(state: session.state, size: 20, tint: session.tint, celebrateOnAppear: false)
+            Group {
+                if NotchLayout.arcade {
+                    PixelSpark(state: session.state, size: 22, tint: session.tint)
+                } else {
+                    SparkView(state: session.state, size: 20, tint: session.tint, celebrateOnAppear: false)
+                }
+            }
                 .frame(width: 28, height: 28)
 
             VStack(alignment: .leading, spacing: 2) {
