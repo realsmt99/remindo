@@ -1,0 +1,305 @@
+#!/bin/zsh -f
+# remindo: connects coding agents to the Remindo notch app.
+#
+#   remindo hook <agent> [json]   forward a hook payload (stdin, or a JSON argument as Codex sends it)
+#   remindo notify ...            send a status update from anything (scripts, other agents)
+#   remindo status | test | open | doctor
+#   remindo install-claude | uninstall-claude
+#
+# Hook mode never prints to stdout and always exits 0, so it can't get in an agent's way.
+
+emulate -L zsh
+zmodload zsh/datetime 2>/dev/null
+
+readonly VERSION=1.0.0
+REMINDO_HOME=${REMINDO_HOME:-$HOME/.remindo}
+SELF=$REMINDO_HOME/bin/remindo
+CURL=/usr/bin/curl
+AGENT_PID=$PPID
+
+PORT=${REMINDO_PORT:-}
+if [[ -z $PORT && -r $REMINDO_HOME/port ]]; then PORT=$(<$REMINDO_HOME/port); fi
+PORT=${PORT//[^0-9]/}
+PORT=${PORT:-47474}
+BASE="http://127.0.0.1:$PORT"
+TS=${EPOCHREALTIME:-$(date +%s)}
+TS=${TS/,/.}
+TOKEN=
+if [[ -r $REMINDO_HOME/token ]]; then TOKEN=$(<$REMINDO_HOME/token); fi
+TOKEN=${TOKEN//[^0-9a-fA-F]/}
+
+# _request METHOD ROUTE [curl args...]  ->  prints the HTTP status code ("000" if unreachable)
+# -q (must come first) ignores ~/.curlrc; --noproxy keeps proxy settings from rerouting localhost.
+_request() {
+  local method=$1 route=$2
+  shift 2
+  $CURL -q -s -o "${REMINDO_OUT:-/dev/null}" -w '%{http_code}' -X "$method" \
+    --noproxy '*' --connect-timeout 0.5 --max-time 3 \
+    -H 'Expect:' \
+    -H "X-Remindo-Client: cli/$VERSION" \
+    -H "X-Remindo-Token: $TOKEN" \
+    -H "X-Remindo-Pid: $AGENT_PID" \
+    -H "X-Remindo-Bundle: ${__CFBundleIdentifier:-}" \
+    -H "X-Remindo-Term: ${TERM_PROGRAM:-}" \
+    -H "X-Remindo-Ts: $TS" \
+    "$@" "$BASE$route" 2>/dev/null
+}
+
+usage() {
+  cat <<EOF
+remindo $VERSION: tell the Remindo notch what your agents are up to.
+
+Agents with hooks:
+  remindo hook claude-code          reads a Claude Code hook payload on stdin
+  remindo hook codex '<json>'       Codex 'notify' style (JSON as the last argument)
+  remindo hook <agent>              any agent with Claude-Code-like hook JSON
+
+Anything else:
+  remindo notify --state done --title "Build finished" --message "All tests pass"
+  remindo notify working|done|approval|waiting|error|idle|end [message]
+      -a, --agent NAME     shown in the notch (default: agent)
+      -s, --state STATE    required
+      -t, --title TEXT     custom headline
+      -m, --message TEXT   detail line
+          --session ID     group updates (default: agent + current directory)
+          --cwd DIR        project folder (default: \$PWD)
+
+Setup & checks:
+  remindo install-claude    link Claude Code (adds hooks to ~/.claude/settings.json, keeps a backup)
+  remindo uninstall-claude  remove Remindo's hooks
+  remindo go                start Remindo
+  remindo stop              quit Remindo
+  remindo status            what Remindo is tracking right now
+  remindo test [scenario]   preview: demo, working, approval, question, done, error
+  remindo doctor            check the setup
+EOF
+}
+
+cmd_hook() {
+  [[ -n ${REMINDO_DISABLE:-} ]] && return 0
+  local agent=${1:-claude-code}
+  (( $# )) && shift
+  agent=${agent//[^A-Za-z0-9._-]/}
+  if (( $# )) && [[ $1 == '{'* ]]; then
+    _request POST "/v1/hook/$agent" -H 'Content-Type: application/json' --data-binary "$1" >/dev/null
+  elif [[ -p /dev/stdin || -S /dev/stdin || -f /dev/stdin ]]; then
+    # A pipe, socket (how Claude Code passes it) or file; a closed stdin must not reach curl.
+    _request POST "/v1/hook/$agent" -H 'Content-Type: application/json' --data-binary @- >/dev/null
+  fi
+  return 0
+}
+
+cmd_notify() {
+  local agent=${REMINDO_AGENT:-agent} state= title= message= session= cwd=$PWD
+  while (( $# )); do
+    case $1 in
+      -a|--agent|-s|--state|-t|--title|-m|--message|--session|--cwd)
+        if (( $# < 2 )); then print -u2 "remindo notify: $1 needs a value"; return 2; fi
+        case $1 in
+          -a|--agent) agent=$2 ;;
+          -s|--state) state=$2 ;;
+          -t|--title) title=$2 ;;
+          -m|--message) message=$2 ;;
+          --session) session=$2 ;;
+          --cwd) cwd=$2 ;;
+        esac
+        shift 2 ;;
+      -h|--help) usage; return 0 ;;
+      *)
+        if [[ -z $state ]]; then state=$1; elif [[ -z $message ]]; then message=$1; fi
+        shift ;;
+    esac
+  done
+  if [[ -z $state ]]; then
+    print -u2 "remindo notify: pick a state: working, done, approval, waiting, error, idle or end"
+    return 2
+  fi
+  local code body
+  body=$(mktemp "${TMPDIR:-/tmp}/remindo.XXXXXX") || return 1
+  code=$(REMINDO_OUT=$body _request POST /v1/event \
+    --data-urlencode "agent=$agent" --data-urlencode "state=$state" \
+    --data-urlencode "title=$title" --data-urlencode "message=$message" \
+    --data-urlencode "session=$session" --data-urlencode "cwd=$cwd")
+  local reply=$(<$body)
+  rm -f "$body"
+  case $code in
+    2*) return 0 ;;
+    000) print -u2 "remindo: Remindo isn't running (nothing on $BASE). Open it with: remindo open"; return 1 ;;
+    *) print -u2 "remindo: Remindo said HTTP $code: $reply"; return 1 ;;
+  esac
+}
+
+cmd_status() {
+  local out
+  out=$($CURL -q -s --noproxy '*' --connect-timeout 0.5 --max-time 3 \
+    -H "X-Remindo-Client: cli/$VERSION" -H "X-Remindo-Token: $TOKEN" "$BASE/v1/status" 2>/dev/null)
+  if [[ -z $out ]]; then
+    print -u2 "Remindo isn't running (nothing on $BASE)."
+    return 1
+  fi
+  local jq_bin
+  if jq_bin=$(_jq 2>/dev/null); then print -r -- "$out" | "$jq_bin" .; else print -r -- "$out"; fi
+}
+
+cmd_test() {
+  local code
+  code=$(_request POST /v1/test --data-urlencode "scenario=${1:-demo}")
+  if [[ $code == 2* ]]; then
+    print "Look at your notch ✨"
+  else
+    print -u2 "remindo: Remindo isn't running (nothing on $BASE). Open it with: remindo open"
+    return 1
+  fi
+}
+
+cmd_stop() {
+  if ! pgrep -x Remindo >/dev/null 2>&1; then print "Remindo isn't running."; return 0; fi
+  osascript -e 'tell application id "dev.remindo.Remindo" to quit' >/dev/null 2>&1
+  for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x Remindo >/dev/null 2>&1 || break; sleep 0.2; done
+  pgrep -x Remindo >/dev/null 2>&1 && pkill -x Remindo
+  print "Remindo stopped 💤"
+}
+
+cmd_open() {
+  print "Starting Remindo ✨"
+  open -b dev.remindo.Remindo 2>/dev/null || open -a Remindo
+}
+
+# Hook events Remindo listens to. "async" ones are frequent and must never slow Claude down.
+CLAUDE_EVENTS='[
+  {"name":"SessionStart"},
+  {"name":"UserPromptSubmit"},
+  {"name":"PreToolUse","matcher":"*","async":true},
+  {"name":"PermissionRequest","matcher":"*"},
+  {"name":"PostToolUse","matcher":"*","async":true},
+  {"name":"PostToolUseFailure","matcher":"*","async":true},
+  {"name":"PermissionDenied","matcher":"*","async":true},
+  {"name":"Notification"},
+  {"name":"Elicitation"},
+  {"name":"ElicitationResult"},
+  {"name":"Stop"},
+  {"name":"StopFailure"},
+  {"name":"SubagentStart","async":true},
+  {"name":"SubagentStop","async":true},
+  {"name":"PreCompact","async":true},
+  {"name":"SessionEnd"}
+]'
+
+# Only Remindo's own hook entries ("<path>/remindo hook claude-code"), never a user's own
+# hooks that happen to call remindo (e.g. "remindo notify ...").
+JQ_COMMON='
+  def ours: (type == "object")
+    and (((.command // "") | tostring) as $c
+         | ($c == $cmd) or ($c | test("remindo\\W?\\s+hook\\s+claude-code\\s*$")));
+  def strip:
+    map(if (type == "object") and ((.hooks | type) == "array") then .hooks |= map(select(ours | not)) else . end)
+    | map(select((type != "object") or ((.hooks | type) != "array") or ((.hooks | length) > 0)));
+'
+
+JQ_INSTALL=$JQ_COMMON'
+  .hooks = ((.hooks // {}) | if type == "object" then . else {} end)
+  | reduce $events[] as $e (.;
+      .hooks[$e.name] = (
+        ((.hooks[$e.name] // []) | if type == "array" then strip else [] end)
+        + [ ({hooks: [ ({type: "command", command: $cmd, timeout: 10}
+                        + (if $e.async then {async: true} else {} end)) ]}
+             + (if $e.matcher then {matcher: $e.matcher} else {} end)) ]))
+'
+
+JQ_UNINSTALL=$JQ_COMMON'
+  if (.hooks | type) == "object" then
+    .hooks |= with_entries(if (.value | type) == "array" then .value |= strip else . end)
+    | .hooks |= with_entries(select(((.value | type) != "array") or ((.value | length) > 0)))
+    | if (.hooks | length) == 0 then del(.hooks) else . end
+  else . end
+'
+
+_claude_settings() { print -r -- "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"; }
+
+_jq() {
+  local bin
+  for bin in "$(command -v jq 2>/dev/null)" /usr/bin/jq /opt/homebrew/bin/jq /usr/local/bin/jq; do
+    [[ -n $bin && -x $bin ]] && { print -r -- "$bin"; return 0; }
+  done
+  print -u2 "remindo: jq is needed to edit Claude's settings (built into macOS 15+, or: brew install jq)."
+  return 1
+}
+
+# Rewrites settings.json in place (keeps symlinks and permissions), after a backup.
+_edit_settings() {
+  local program=$1 label=$2
+  local settings jq_bin backup tmp cmd
+  settings=$(_claude_settings)
+  jq_bin=$(_jq) || return 1
+  mkdir -p "${settings:h}"
+  [[ -s $settings ]] || print '{}' > "$settings"
+  if ! "$jq_bin" -e 'type == "object"' "$settings" >/dev/null 2>&1; then
+    print -u2 "remindo: $settings isn't valid JSON; leaving it untouched."
+    return 1
+  fi
+  backup="$settings.remindo-backup.$(date +%Y%m%d-%H%M%S)"
+  cp -p "$settings" "$backup" || return 1
+  # Always single-quoted for the shell Claude Code runs hooks through (embedded ' escaped as '\'').
+  cmd="'${SELF//\'/\'\\\'\'}' hook claude-code"
+  tmp=$(mktemp "${TMPDIR:-/tmp}/remindo-settings.XXXXXX") || return 1
+  if "$jq_bin" --indent 2 --arg cmd "$cmd" --argjson events "$CLAUDE_EVENTS" "$program" "$settings" > "$tmp" \
+      && "$jq_bin" -e 'type == "object"' "$tmp" >/dev/null 2>&1; then
+    if cat "$tmp" > "$settings"; then
+      rm -f "$tmp"
+      print "✓ $label ($settings)"
+      print "  backup: $backup"
+      return 0
+    fi
+    rm -f "$tmp"
+    print -u2 "remindo: couldn't write $settings (unchanged; backup at $backup)"
+    return 1
+  fi
+  rm -f "$tmp"
+  print -u2 "remindo: couldn't update $settings (your backup is at $backup)"
+  return 1
+}
+
+cmd_install_claude() {
+  if [[ ! -x $SELF ]]; then
+    print -u2 "remindo: expected the CLI at $SELF (open Remindo once, or run scripts/install.sh)."
+    return 1
+  fi
+  _edit_settings "$JQ_INSTALL" "Linked Claude Code to Remindo" || return 1
+  print "  New Claude Code sessions (terminal, IDE or the Claude app) will light up the notch."
+}
+
+cmd_uninstall_claude() {
+  _edit_settings "$JQ_UNINSTALL" "Removed Remindo's hooks from Claude Code"
+}
+
+cmd_doctor() {
+  local settings ok=1 code
+  settings=$(_claude_settings)
+  print "remindo $VERSION"
+  print -n "• CLI at $SELF: "; [[ -x $SELF ]] && print "ok" || { print "missing"; ok=0; }
+  code=$($CURL -q -s --noproxy '*' -o /dev/null -w '%{http_code}' --connect-timeout 0.5 --max-time 2 "$BASE/health" 2>/dev/null)
+  print -n "• Remindo app on $BASE: "; [[ $code == 200 ]] && print "running" || { print "not reachable"; ok=0; }
+  print -n "• Claude Code hooks in $settings: "
+  if [[ -r $settings ]] && grep -q '/.remindo/bin/remindo' "$settings"; then print "linked"; else print "not linked (run: remindo install-claude)"; ok=0; fi
+  print -n "• jq: "; command -v jq >/dev/null 2>&1 && print "ok" || print "missing (only needed to link Claude Code)"
+  (( ok )) && print "All good ✨" || return 1
+}
+
+case ${1:-} in
+  hook) shift; cmd_hook "$@"; exit 0 ;;
+  notify) shift; cmd_notify "$@" ;;
+  status) cmd_status ;;
+  test|demo|preview) shift; cmd_test "$@" ;;
+  open|go|start) cmd_open ;;
+  stop|quit) cmd_stop ;;
+  install-claude|link-claude) cmd_install_claude ;;
+  uninstall-claude|unlink-claude) cmd_uninstall_claude ;;
+  doctor) cmd_doctor ;;
+  version|--version|-v) print $VERSION ;;
+  help|--help|-h) usage ;;
+  '')
+    # No arguments but piped JSON: treat as a Claude Code hook.
+    if [[ ! -t 0 ]]; then cmd_hook claude-code; exit 0; fi
+    usage ;;
+  *) print -u2 "remindo: unknown command '$1'"; usage >&2; exit 2 ;;
+esac
