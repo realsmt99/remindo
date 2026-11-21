@@ -34,4 +34,10 @@ echo "  Try it: ~/.remindo/bin/remindo test"
 # Make `remindo` a terminal command (e.g. `remindo go`).
 mkdir -p "$HOME/.local/bin"
 ln -sf "$HOME/.remindo/bin/remindo" "$HOME/.local/bin/remindo"
-echo "✓ 'remindo' command available (try: remindo go)"
+if /bin/zsh -lic 'whence -p remindo' >/dev/null 2>&1; then
+  echo "✓ 'remindo' command available (try: remindo go)"
+else
+  echo "✓ 'remindo' installed at ~/.local/bin/remindo"
+  echo "  To use 'remindo' from any terminal, add ~/.local/bin to your PATH once:"
+  echo "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc && source ~/.zshrc"
+fi

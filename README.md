@@ -1,71 +1,201 @@
-# Remindo
+# Remindo 🕹️
 
-A notch companion for coding agents. Remindo lives in your MacBook's notch and tells you,
-with an animated Claude spark, when Claude Code is **cooking**, **needs your approval**,
-**has a question**, or **finished**. It reminds you again whenever you switch apps,
-change Spaces, or wake the screen while something is still waiting on you.
+**A tiny arcade game in your MacBook's notch that tells you what Claude Code is doing.**
+
+While Claude Code works, a pixel spark chomps its way along your notch. When Claude
+**needs your approval**, **asks you a question**, or **finishes**, a card drops out of the
+notch, and it reminds you again when you switch apps, change Spaces, or come back to
+your Mac, so you never leave Claude waiting.
 
 ```
- working        ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ 2:14
- needs you      ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ ✋      → drops a card: "Needs your approval · Run: npm install"
- finished       ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ ✓       → "Finished cooking · Added the login page…" + a sound
+ cooking…        ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ 2:14       the spark chomps dots, bugs chase it
+ needs you       ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ ✋         "PRESS OK TO CONTINUE · Run: npm install"
+ finished        ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ ✓          "LEVEL CLEAR! · Added the login page…" + a sound
 ```
 
-- **Hover** the notch to see every session. **Click** a session to jump back to its app
-  (Terminal, iTerm, VS Code, Cursor, the Claude app…).
-- Works for Claude Code in any terminal or IDE, and inside the **Claude desktop app** (Code tab).
-- Any other agent can plug in through the `remindo` CLI.
+- Works with **Claude Code** in any terminal or IDE, and inside the **Claude desktop app** (Code tab)
+- **Hover** the notch to see every session; **click** one to jump back to its app
+- Remembers you even when you're away: reminders on app switch, Space change, wake/unlock
+- Arcade style (retro pixels) or a smooth animated spark, your choice
+- Any other agent or script can plug in through the `remindo` command
+- 100% local: everything stays on your Mac
 
-## Install
+---
+
+## Requirements
+
+- A Mac on **macOS 14 (Sonoma) or newer**. A notch is nice but optional: on other screens
+  Remindo draws a notch-style pill at the top.
+- **Xcode Command Line Tools** (for Swift). Install with `xcode-select --install`.
+- **Claude Code** ([install it](https://docs.anthropic.com/en/docs/claude-code)).
+- `jq`, which macOS 15+ already includes. On macOS 14: `brew install jq`.
+
+## Install (2 minutes)
 
 ```bash
+git clone https://github.com/realsmt99/remindo.git
+cd remindo
 ./scripts/install.sh
 ```
 
-This builds the app, puts it in `~/Applications/Remindo.app`, installs the CLI at
-`~/.remindo/bin/remindo`, links Claude Code (adds hooks to `~/.claude/settings.json`,
-after saving a timestamped backup next to it), and launches Remindo.
-Set `REMINDO_SKIP_CLAUDE=1` to skip the linking.
+That's it. The installer:
 
-New Claude Code sessions pick up the hooks automatically; restart sessions that were already open.
+1. builds the app and puts it in `~/Applications/Remindo.app`
+2. installs the `remindo` command (in `~/.remindo/bin`, linked from `~/.local/bin`)
+3. **connects Claude Code** (see below), after saving a backup of your settings
+4. starts Remindo: look for the ✳ spark in your menu bar
 
-Try it:
+Then watch a demo game on your notch:
 
 ```bash
-~/.remindo/bin/remindo test
+remindo test
 ```
 
-Requirements: macOS 14+, Xcode or the Command Line Tools (Swift 5.10+), and `jq`
-(built into macOS 15+) for linking Claude Code.
+> If your terminal says `remindo: command not found`, add `~/.local/bin` to your PATH once:
+> ```bash
+> echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+> ```
 
-## The menu bar spark
+### Or: download the app
 
-- Preview every animation
-- Remind me when I switch apps or Spaces
-- Show live activity while agents work
-- Repeat reminders for approvals (every 90 s while you're elsewhere)
-- Remind me even inside the agent's app
-- Play sounds
-- Show on the notch display, or on whichever display is active
-- Launch at login
-- Link / unlink Claude Code
+Prefer not to build it yourself? Grab **Remindo.zip** from the
+[latest release](https://github.com/realsmt99/remindo/releases/latest), unzip it, and move
+**Remindo.app** to your Applications folder.
 
-## Linking other agents
-
-Remindo understands Claude Code style hook JSON from any agent:
+Remindo isn't notarized by Apple, so the first time macOS will refuse to open it. Allow it once:
 
 ```bash
-# Any agent that can run a command with hook JSON on stdin
+xattr -dr com.apple.quarantine /Applications/Remindo.app
+open /Applications/Remindo.app
+```
+
+(Or right-click the app → **Open** → **Open**.) Then click the ✳ in the menu bar →
+**Link Claude Code…** to connect it.
+
+---
+
+## Connect it to Claude Code
+
+### Automatic (recommended)
+
+`./scripts/install.sh` connects it for you. You can also do it any time with:
+
+```bash
+remindo install-claude
+```
+
+or from the menu bar: ✳ → **Link Claude Code…**
+
+This adds [hooks](https://docs.anthropic.com/en/docs/claude-code/hooks) to your **user**
+Claude Code settings (`~/.claude/settings.json`). Your other settings and hooks are kept, and
+a backup is saved next to the file (`settings.json.remindo-backup.<date>`). Running it again
+is safe: it never adds duplicates.
+
+**Then restart any Claude Code sessions that were already open.** New sessions pick up the
+hooks automatically: in the terminal, in VS Code / Cursor, and in the Claude desktop app.
+
+### Check that it works
+
+```bash
+remindo doctor
+```
+
+```
+• CLI at ~/.remindo/bin/remindo: ok
+• Remindo app on http://127.0.0.1:47474: running
+• Claude Code hooks in ~/.claude/settings.json: linked
+• jq: ok
+All good ✨
+```
+
+Now start Claude Code, give it a task, and switch to another app: the notch shows the game
+while it cooks, and pings you when it needs you or finishes.
+
+### Manual setup (if you manage settings.json yourself)
+
+Every hook runs the same command, `~/.remindo/bin/remindo hook claude-code`, which forwards
+Claude Code's hook JSON to the Remindo app. Add this to the `hooks` section of
+`~/.claude/settings.json` (or a project's `.claude/settings.json`), replacing `YOU` with your
+username:
+
+```json
+{
+  "hooks": {
+    "SessionStart":       [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "UserPromptSubmit":   [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "PreToolUse":         [{ "matcher": "*", "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10, "async": true }] }],
+    "PermissionRequest":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "PostToolUse":        [{ "matcher": "*", "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10, "async": true }] }],
+    "PostToolUseFailure": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10, "async": true }] }],
+    "PermissionDenied":   [{ "matcher": "*", "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10, "async": true }] }],
+    "Notification":       [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "Elicitation":        [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "ElicitationResult":  [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "Stop":               [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "StopFailure":        [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }],
+    "SubagentStart":      [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10, "async": true }] }],
+    "SubagentStop":       [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10, "async": true }] }],
+    "PreCompact":         [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10, "async": true }] }],
+    "SessionEnd":         [{ "hooks": [{ "type": "command", "command": "'/Users/YOU/.remindo/bin/remindo' hook claude-code", "timeout": 10 }] }]
+  }
+}
+```
+
+The minimum useful set is `UserPromptSubmit`, `PermissionRequest`, `Notification` and `Stop`;
+the others make the live status richer. The hook command never prints anything and always
+exits 0, even when Remindo isn't running, so it can't block or slow Claude Code. The frequent
+tool hooks run with `async: true`.
+
+### Disconnect
+
+```bash
+remindo uninstall-claude
+```
+
+Removes only Remindo's hooks; everything else in your settings stays.
+
+---
+
+## Everyday use
+
+| Command | What it does |
+|---|---|
+| `remindo go` | start Remindo |
+| `remindo stop` | quit Remindo |
+| `remindo test` | play the demo (`working`, `approval`, `question`, `done`, `error`) |
+| `remindo status` | what Remindo is tracking right now |
+| `remindo doctor` | check the setup |
+
+Click the ✳ in the menu bar for:
+
+- **Preview the notch**: every animation
+- **Remind me when I switch apps or Spaces**
+- **Show live activity while agents work**: the chomping spark in the notch's wings
+- **Repeat reminders for approvals**: every 90 s while you're elsewhere
+- **Remind me even inside the agent's app**
+- **Play sounds**
+- **Arcade style (retro pixels)**: switch between the game and the smooth spark
+- **Show on**: the notch display or whichever display you're using
+- **Launch at login**
+- **Link / unlink Claude Code**
+
+---
+
+## Connect other agents
+
+Remindo understands Claude-Code-style hook JSON from any agent:
+
+```bash
 some-agent-hook | ~/.remindo/bin/remindo hook my-agent
 ```
 
-**Codex CLI**: add to `~/.codex/config.toml`:
+**Codex CLI**: add to `~/.codex/config.toml` (replace `YOU`):
 
 ```toml
 notify = ["/Users/YOU/.remindo/bin/remindo", "hook", "codex"]
 ```
 
-**Anything else** (scripts, CI, other tools):
+**Anything else** (scripts, CI, long builds):
 
 ```bash
 remindo notify --agent my-build --state working --message "Compiling…"
@@ -75,8 +205,7 @@ remindo notify --agent my-bot --state approval --message "Deploy to production?"
 
 States: `working`, `done`, `approval`, `waiting`, `error`, `idle`, `end`.
 
-Raw HTTP (loopback only; needs the `X-Remindo-Client` header and your private token from
-`~/.remindo/token`; browser requests are refused):
+Raw HTTP (loopback only; needs your private token):
 
 ```bash
 curl --noproxy '*' -H 'X-Remindo-Client: me' -H "X-Remindo-Token: $(cat ~/.remindo/token)" \
@@ -84,44 +213,44 @@ curl --noproxy '*' -H 'X-Remindo-Client: me' -H "X-Remindo-Token: $(cat ~/.remin
      "http://127.0.0.1:$(cat ~/.remindo/port)/v1/event"
 ```
 
-## CLI
+---
 
-```
-remindo hook <agent> [json]   forward a hook payload (stdin or argument)
-remindo notify ...            generic status update
-remindo status                what Remindo is tracking
-remindo test [scenario]       demo | working | approval | question | done | error
-remindo doctor                check the setup
-remindo install-claude        link Claude Code
-remindo uninstall-claude      unlink Claude Code
-```
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `remindo: command not found` | Add `~/.local/bin` to PATH (see Install), or use `~/.remindo/bin/remindo` |
+| `Remindo isn't running` | `remindo go` (turn on **Launch at login** in the menu to keep it running) |
+| Notch never lights up for Claude Code | Run `remindo doctor`, then **restart your Claude Code session** so it loads the hooks |
+| Can't see the ✳ in the menu bar | A full menu bar hides icons behind the notch. Hover the notch instead, or remove some menu bar icons |
+| "Remindo can't be opened" | See the `xattr` step under **Download the app** |
+| Port 47474 is taken | Remindo picks the next free port automatically and tells the CLI via `~/.remindo/port` |
+
+---
 
 ## How it works
 
 ```
-Claude Code ──hook──▶ ~/.remindo/bin/remindo ──HTTP 127.0.0.1:47474──▶ Remindo.app ──▶ notch
+Claude Code ──hook──▶ ~/.remindo/bin/remindo ──HTTP 127.0.0.1──▶ Remindo.app ──▶ your notch
 ```
 
-- Hooks used: SessionStart, UserPromptSubmit, PreToolUse, PermissionRequest, PostToolUse,
-  PostToolUseFailure, PermissionDenied, Notification, Elicitation, Stop, StopFailure,
-  SubagentStart, SubagentStop, PreCompact, SessionEnd. The frequent tool hooks run with
-  `async: true`, so they never slow Claude down. The CLI never prints anything and always
-  exits 0, even when Remindo isn't running.
-- Remindo finds the app hosting each session by walking the process tree, so clicking the
-  notch brings you back to the right app.
-- Esc-interrupted turns are detected from the session transcript, so nothing stays stuck on "cooking".
-- Everything stays on your Mac. The server only listens on 127.0.0.1.
+- Hooks send Claude Code's events to a tiny local server inside Remindo. It only listens on
+  `127.0.0.1`, refuses browser requests, and requires a private per-user token
+  (`~/.remindo/token`).
+- Remindo works out which app runs each session (Terminal, iTerm, VS Code, Cursor, the
+  Claude app…) so a click brings you straight back there.
+- Esc-interrupted turns, background agents and out-of-order events are handled, so nothing
+  stays stuck on "cooking".
+- Nothing leaves your Mac.
 
-## Development
+## Build from source
 
 ```bash
-swift build                                   # debug build
-.build/debug/Remindo                          # run without installing
-.build/debug/Remindo --snapshot /tmp/remindo  # render every notch state to PNGs
-./scripts/build.sh                            # build/Remindo.app
+swift build                                  # debug build
+.build/debug/Remindo                         # run without installing
+.build/debug/Remindo --snapshot /tmp/shots   # render every notch state to PNGs
+./scripts/build.sh                           # build/Remindo.app
 ```
-
-Port: `defaults write dev.remindo.Remindo port 47474` (then restart Remindo).
 
 ## Uninstall
 
@@ -129,4 +258,8 @@ Port: `defaults write dev.remindo.Remindo port 47474` (then restart Remindo).
 ./scripts/uninstall.sh
 ```
 
-Removes the Claude Code hooks, the login item, the app, `~/.remindo` and the preferences.
+Removes the Claude Code hooks, the login item, the app, `~/.remindo` and Remindo's preferences.
+
+## License
+
+[MIT](LICENSE) © 2026 Amine Menadi. Not affiliated with Anthropic.

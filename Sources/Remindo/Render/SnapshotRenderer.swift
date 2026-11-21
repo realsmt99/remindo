@@ -94,7 +94,7 @@ enum SnapshotRenderer {
         var t = 1_000.0
         func next() -> Double { t += 1; return t }
         var e = AgentEvent(agentID: "claude-code", sessionID: "working", action: .turnStart, timestamp: next())
-        e.cwd = "/Users/me/Projects/warbot"
+        e.cwd = "/Users/me/Projects/game-server"
         e.prompt = "Refactor the matchmaking queue"
         store.apply(e)
     }
@@ -113,11 +113,11 @@ enum SnapshotRenderer {
             e.hostBundleID = host
             store.apply(e)
         }
-        ev("working", .turnStart, cwd: "/Users/me/Projects/warbot", prompt: "Refactor the matchmaking queue",
+        ev("working", .turnStart, cwd: "/Users/me/Projects/game-server", prompt: "Refactor the matchmaking queue",
            host: "com.apple.Terminal")
-        ev("working", .activity, cwd: "/Users/me/Projects/warbot", detail: "Editing Matchmaker.swift")
-        ev("approval", .turnStart, cwd: "/Users/me/Projects/huminizer", prompt: "Add the export button")
-        ev("approval", .approval(toolUseID: nil), cwd: "/Users/me/Projects/huminizer",
+        ev("working", .activity, cwd: "/Users/me/Projects/game-server", detail: "Editing Matchmaker.swift")
+        ev("approval", .turnStart, cwd: "/Users/me/Projects/photo-app", prompt: "Add the export button")
+        ev("approval", .approval(toolUseID: nil), cwd: "/Users/me/Projects/photo-app",
            detail: "Run: npm install --save file-saver", host: "com.anthropic.claudefordesktop")
         ev("question", .turnStart, cwd: "/Users/me/Projects/api", prompt: "Set up the database")
         ev("question", .question, cwd: "/Users/me/Projects/api", detail: "Which database should I use: SQLite or Postgres?")

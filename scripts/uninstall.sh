@@ -14,5 +14,6 @@ fi
 pkill -x Remindo 2>/dev/null || true
 
 rm -rf "$APP" "$HOME/.remindo"
+[[ -L "$HOME/.local/bin/remindo" ]] && rm -f "$HOME/.local/bin/remindo"
 defaults delete dev.remindo.Remindo >/dev/null 2>&1 || true
 echo "✓ Remindo removed"
