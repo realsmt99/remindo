@@ -51,13 +51,13 @@ enum SnapshotRenderer {
         }
         // Arcade lane frames: the chase over time, then the other states.
         let lanes = VStack(spacing: 10) {
-            ForEach(0..<4, id: \.self) { i in
-                Canvas { ctx, sz in ArcadeStrip.paint(&ctx, size: sz, t: 1000 + Double(i) * 1.1, state: .working, tint: Palette.claude) }
-                    .frame(width: 380, height: 20)
+            ForEach(0..<6, id: \.self) { i in
+                Canvas { ctx, sz in ArcadeStrip.paint(&ctx, size: sz, t: 1000 + Double(i) * 0.9, state: .working, tint: Palette.claude) }
+                    .frame(width: 380, height: 24)
             }
             ForEach([AgentState.approval, .done, .error], id: \.self) { st in
                 Canvas { ctx, sz in ArcadeStrip.paint(&ctx, size: sz, t: 1000.2, state: st, tint: Palette.claude) }
-                    .frame(width: 380, height: 20)
+                    .frame(width: 380, height: 24)
             }
         }
         .padding(16)

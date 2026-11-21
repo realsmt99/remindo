@@ -255,7 +255,7 @@ struct PeekCard: View {
 
             if arcade {
                 ArcadeStrip(state: state, tint: tint)
-                    .frame(height: 20)
+                    .frame(height: 24)
                     .padding(.horizontal, 18)
                     .padding(.bottom, 10)
             }

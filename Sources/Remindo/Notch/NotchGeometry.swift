@@ -52,7 +52,7 @@ enum NotchLayout {
         case .compact:
             return CGSize(width: nw + wing * 2, height: nh)
         case .peek:
-            return CGSize(width: max(nw + 236, 424), height: nh + (arcade ? 108 : 82))
+            return CGSize(width: max(nw + 236, 424), height: nh + (arcade ? 112 : 82))
         case .expanded:
             let r = CGFloat(min(max(rows, 1), maxRows))
             return CGSize(width: max(nw + 280, 468), height: nh + 14 + r * 54 + 40)
