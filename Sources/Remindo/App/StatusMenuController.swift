@@ -89,6 +89,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(toggle("Remind me even inside the agent's app", prefs.remindWhenHostFrontmost, #selector(toggleHostFront)))
         menu.addItem(toggle("Play sounds", prefs.soundsEnabled, #selector(toggleSounds)))
         menu.addItem(toggle("Arcade style (retro pixels)", prefs.arcadeStyle, #selector(toggleArcade)))
+        menu.addItem(toggle("Floating island (even with a notch)", prefs.islandEverywhere, #selector(toggleIsland)))
 
         let display = NSMenuItem(title: "Show on", action: nil, keyEquivalent: "")
         let displayMenu = NSMenu()
@@ -158,6 +159,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     @objc private func toggleHostFront() { prefs.remindWhenHostFrontmost.toggle() }
     @objc private func toggleSounds() { prefs.soundsEnabled.toggle() }
     @objc private func toggleArcade() { prefs.arcadeStyle.toggle() }
+    @objc private func toggleIsland() {
+        prefs.islandEverywhere.toggle()
+        window.reposition()
+    }
 
     @objc private func displayNotch() {
         prefs.displayMode = .notch

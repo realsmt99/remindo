@@ -25,6 +25,14 @@ your Mac, so you never leave Claude waiting.
 | **Finished** | **Hit an error** |
 | ![Done card: LEVEL CLEAR! with Claude's summary](docs/images/done.png) | ![Error card: GAME OVER, API overloaded](docs/images/error.png) |
 
+**No notch? You get a Dynamic Island.** On iMacs, external displays and Macs without a
+notch, Remindo floats as an island pill at the top of the screen:
+
+<p align="center">
+  <img src="docs/images/island-compact.png" width="720" alt="The floating island pill on a screen without a notch">
+  <img src="docs/images/island-working.png" width="720" alt="The island grown into a floating card while Claude works">
+</p>
+
 **Hover the notch** to see every agent at once; click one to jump back to it:
 
 <p align="center">
@@ -46,7 +54,7 @@ your Mac, so you never leave Claude waiting.
 |---|---|
 | **macOS** | 14 Sonoma, 15 Sequoia, 26 Tahoe, and newer |
 | **Macs** | Apple Silicon (M1 to M4 and later) and Intel: one universal app |
-| **Screens** | MacBooks with a notch get the full notch effect; other displays get a notch-style pill at the top |
+| **Screens** | MacBooks with a notch: it grows out of the notch. Everything else (iMac, external displays, Macs without a notch): a floating Dynamic Island |
 | **Claude Code** | In any terminal (Terminal, iTerm2, Ghostty, Warp…), in VS Code / Cursor, and in the Claude desktop app |
 
 ## Requirements
@@ -203,6 +211,7 @@ Click the ✳ in the menu bar for:
 - **Remind me even inside the agent's app**
 - **Play sounds**
 - **Arcade style (retro pixels)**: switch between the game and the smooth spark
+- **Floating island (even with a notch)**: use the Dynamic Island look on a notched MacBook too
 - **Show on**: the notch display or whichever display you're using
 - **Launch at login**
 - **Link / unlink Claude Code**

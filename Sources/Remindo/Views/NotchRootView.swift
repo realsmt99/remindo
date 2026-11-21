@@ -9,17 +9,20 @@ struct NotchRootView: View {
     var body: some View {
         let mode = model.mode
         let size = model.shapeSize
-        let shape = NotchShape(topRadius: NotchLayout.ear(mode), bottomRadius: NotchLayout.corner(mode))
+        let island = model.metrics.island
+        let shape = NotchLayout.shape(mode, island: island, height: size.height)
+        // The island floats: a soft shadow even when small, and a gap above it.
+        let shadow = island ? (mode == .hidden ? 0 : 0.5) : (mode == .peek || mode == .expanded ? 0.45 : 0)
 
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
-                GlowHalo(mode: mode, color: model.glowColor, pulsing: model.glowPulses)
+                GlowHalo(mode: mode, color: model.glowColor, pulsing: model.glowPulses, shape: shape)
                     .frame(width: size.width, height: size.height)
 
                 shape
                     .fill(Color.black)
                     .frame(width: size.width, height: size.height)
-                    .shadow(color: .black.opacity(mode == .peek || mode == .expanded ? 0.45 : 0), radius: 14, y: 6)
+                    .shadow(color: .black.opacity(shadow), radius: island && mode == .compact ? 8 : 14, y: island ? 4 : 6)
 
                 NotchContent(model: model, store: store, actions: actions)
                     .frame(width: size.width, height: size.height, alignment: .top)
@@ -27,6 +30,7 @@ struct NotchRootView: View {
             }
             .frame(width: size.width, height: size.height)
             .opacity(mode == .hidden ? 0 : 1)
+            .padding(.top, island ? model.metrics.islandTop : 0)
 
             Spacer(minLength: 0)
         }
@@ -44,12 +48,13 @@ struct GlowHalo: View {
     let color: Color
     /// Breathe while an agent works or waits on you; hold still otherwise (saves energy).
     let pulsing: Bool
+    let shape: NotchShape
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 12.0, paused: mode == .hidden || !pulsing)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             let pulse = pulsing ? 0.55 + 0.45 * (0.5 + 0.5 * sin(t * 2.4)) : 0.8
-            NotchShape(topRadius: NotchLayout.ear(mode), bottomRadius: NotchLayout.corner(mode))
+            shape
                 .fill(color)
                 .blur(radius: mode == .compact ? 6 : 12)
                 .opacity(mode == .hidden ? 0 : pulse * (mode == .compact ? 0.5 : 0.32))
@@ -84,7 +89,7 @@ struct NotchContent: View {
                     .transition(.blurFade)
             }
         }
-        .padding(.horizontal, NotchLayout.ear(model.mode))
+        .padding(.horizontal, model.metrics.island ? 6 : NotchLayout.ear(model.mode))
     }
 }
 

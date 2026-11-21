@@ -70,12 +70,29 @@ extension SnapshotRenderer {
             if let image = renderer.cgImage { compactFrames.append(image) }
         }
         ok = writeGIF(compactFrames, delay: 0.09, to: dir.appendingPathComponent("compact.gif")) && ok
+
+        // The floating island, on a screen without a notch (iMac, external display...).
+        let islandMetrics = NotchMetrics(notchSize: CGSize(width: 150, height: 30), hasNotch: false,
+                                         island: true, islandTop: 5)
+        func islandShot(_ name: String, _ mode: NotchMode, store: SessionStore, peek: String? = nil, height: CGFloat,
+                        time: Double = 1000.35) {
+            let model = NotchViewModel(store: store, prefs: prefs)
+            model.metrics = islandMetrics
+            model.debugShow(mode, peek: peek, kind: .event)
+            ArcadeClock.now = time
+            ok = write(desk(model: model, store: store, metrics: islandMetrics, height: height, notch: false),
+                       to: dir.appendingPathComponent(name)) && ok
+        }
+        islandShot("island-compact.png", .compact, store: soloStore, height: 90, time: 3000)
+        islandShot("island-working.png", .peek, store: store, peek: "working", height: 200, time: 4.6)
+        islandShot("island-done.png", .peek, store: store, peek: "done", height: 200)
         ArcadeClock.now = nil
         return ok
     }
 
     /// A slice of a Mac desktop: wallpaper, menu bar, the physical notch, and Remindo on top.
-    private static func desk(model: NotchViewModel, store: SessionStore, metrics: NotchMetrics, height: CGFloat) -> some View {
+    private static func desk(model: NotchViewModel, store: SessionStore, metrics: NotchMetrics, height: CGFloat,
+                             notch: Bool = true) -> some View {
         ZStack(alignment: .top) {
             LinearGradient(colors: [Color(red: 0.16, green: 0.12, blue: 0.30), Color(red: 0.55, green: 0.30, blue: 0.38),
                                     Color(red: 0.93, green: 0.55, blue: 0.40)],
@@ -90,11 +107,13 @@ extension SnapshotRenderer {
             .font(.system(size: 13))
             .foregroundStyle(.white.opacity(0.9))
             .padding(.horizontal, 16)
-            .frame(height: metrics.notchSize.height)
+            .frame(height: notch ? metrics.notchSize.height : 24)
             .background(Color.black.opacity(0.18))
-            NotchShape(topRadius: 4, bottomRadius: 9)
-                .fill(Color.black)
-                .frame(width: metrics.notchSize.width + 8, height: metrics.notchSize.height)
+            if notch {
+                NotchShape(topRadius: 4, bottomRadius: 9)
+                    .fill(Color.black)
+                    .frame(width: metrics.notchSize.width + 8, height: metrics.notchSize.height)
+            }
             NotchRootView(model: model, store: store, actions: NotchActions())
                 .frame(width: NotchWindowController.windowSize.width, height: NotchWindowController.windowSize.height)
                 .frame(height: height, alignment: .top)

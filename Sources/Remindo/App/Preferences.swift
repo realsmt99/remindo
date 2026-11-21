@@ -19,6 +19,7 @@ final class Preferences: ObservableObject {
         static let repeatReminders = "repeatReminders"
         static let display = "displayMode"
         static let arcade = "arcadeStyle"
+        static let island = "islandEverywhere"
         static let port = "port"
     }
 
@@ -35,6 +36,8 @@ final class Preferences: ObservableObject {
             NotchLayout.arcade = arcadeStyle
         }
     }
+    /// Show the floating island even on a notched MacBook (it floats just below the notch).
+    @Published var islandEverywhere: Bool { didSet { defaults.set(islandEverywhere, forKey: Key.island) } }
     @Published var displayMode: DisplayMode { didSet { defaults.set(displayMode.rawValue, forKey: Key.display) } }
 
     /// Fixed for the life of the process: `defaults write dev.remindo.Remindo port 47474`.
@@ -49,6 +52,7 @@ final class Preferences: ObservableObject {
             Key.repeatReminders: true,
             Key.display: DisplayMode.notch.rawValue,
             Key.arcade: true,
+            Key.island: false,
             Key.port: 47474,
         ])
         soundsEnabled = defaults.bool(forKey: Key.sounds)
@@ -57,6 +61,7 @@ final class Preferences: ObservableObject {
         remindWhenHostFrontmost = defaults.bool(forKey: Key.hostFront)
         repeatReminders = defaults.bool(forKey: Key.repeatReminders)
         arcadeStyle = defaults.bool(forKey: Key.arcade)
+        islandEverywhere = defaults.bool(forKey: Key.island)
         NotchLayout.arcade = defaults.bool(forKey: Key.arcade)
         displayMode = DisplayMode(rawValue: defaults.string(forKey: Key.display) ?? "") ?? .notch
         let raw = defaults.integer(forKey: Key.port)

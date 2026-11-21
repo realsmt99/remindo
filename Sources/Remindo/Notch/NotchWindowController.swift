@@ -90,7 +90,7 @@ final class NotchWindowController {
 
     func reposition() {
         guard let screen = targetScreen() else { return }
-        let metrics = NotchMetrics.measure(screen)
+        let metrics = NotchMetrics.measure(screen, forceIsland: prefs.islandEverywhere)
         if model.metrics != metrics { model.metrics = metrics }
         let f = screen.frame
         let size = Self.windowSize
@@ -160,7 +160,8 @@ final class NotchWindowController {
             return NSRect(x: f.midX - 90, y: f.maxY - 3, width: 180, height: 5)
         default:
             let s = model.shapeSize
-            return NSRect(x: f.midX - s.width / 2, y: f.maxY - s.height, width: s.width, height: s.height + 2)
+            let top = model.metrics.island ? model.metrics.islandTop : 0
+            return NSRect(x: f.midX - s.width / 2, y: f.maxY - top - s.height, width: s.width, height: s.height + 2)
         }
     }
 }
