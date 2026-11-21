@@ -1,5 +1,11 @@
 import SwiftUI
 
+/// Lets the offscreen renderer pick the animation frame (README pictures). nil = live time.
+@MainActor
+enum ArcadeClock {
+    static var now: Double?
+}
+
 /// Retro pixel-arcade look: Claude's spark as a chomping sprite running a dotted lane,
 /// chased by a crew of pixel bugs. Original sprites, drawn from tiny character maps.
 enum PixelArt {
@@ -123,7 +129,7 @@ struct PixelSpark: View {
     var body: some View {
         let moving = animated && (state == .working || state == .approval || state == .waiting)
         TimelineView(.animation(minimumInterval: 0.09, paused: !moving)) { context in
-            let tick = Int(context.date.timeIntervalSinceReferenceDate / 0.09)
+            let tick = Int((ArcadeClock.now ?? context.date.timeIntervalSinceReferenceDate) / 0.09)
             Canvas { ctx, sz in
                 let chomp = [0.0, 0.5, 1.0, 0.5]
                 let rows = PixelArt.muncher(open: state == .working ? chomp[tick % 4] : 0)
@@ -154,7 +160,7 @@ struct ArcadeStrip: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
+            let t = ArcadeClock.now ?? context.date.timeIntervalSinceReferenceDate
             Canvas { ctx, sz in
                 Self.paint(&ctx, size: sz, t: t, state: state, tint: tint)
             }

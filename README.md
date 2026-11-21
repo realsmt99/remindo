@@ -7,11 +7,29 @@ While Claude Code works, a pixel spark chomps its way along your notch. When Cla
 notch, and it reminds you again when you switch apps, change Spaces, or come back to
 your Mac, so you never leave Claude waiting.
 
-```
- cooking…        ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ 2:14       the spark chomps dots, bugs chase it
- needs you       ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ ✋         "PRESS OK TO CONTINUE · Run: npm install"
- finished        ✳ ▬▬▬▬▬▬ notch ▬▬▬▬▬▬ ✓          "LEVEL CLEAR! · Added the login page…" + a sound
-```
+<p align="center">
+  <img src="docs/images/cooking.gif" width="720" alt="Remindo's notch card while Claude Code works: a pixel spark chomps dots along a lane while pixel bugs chase it">
+</p>
+
+**While Claude works**, the spark sits in your notch, chomping, with a timer:
+
+<p align="center">
+  <img src="docs/images/compact.gif" width="720" alt="The compact view: a chomping pixel spark and a timer beside the notch">
+</p>
+
+**When Claude needs you or finishes**, a card drops out of the notch:
+
+| Needs your approval | Has a question |
+|---|---|
+| ![Approval card: PRESS OK TO CONTINUE, Run: npm install --save file-saver](docs/images/approval.png) | ![Question card: YOUR MOVE, Which database should I use?](docs/images/question.png) |
+| **Finished** | **Hit an error** |
+| ![Done card: LEVEL CLEAR! with Claude's summary](docs/images/done.png) | ![Error card: GAME OVER, API overloaded](docs/images/error.png) |
+
+**Hover the notch** to see every agent at once; click one to jump back to it:
+
+<p align="center">
+  <img src="docs/images/list.png" width="720" alt="The expanded list showing several Claude Code sessions and their states">
+</p>
 
 - Works with **Claude Code** in any terminal or IDE, and inside the **Claude desktop app** (Code tab)
 - **Hover** the notch to see every session; **click** one to jump back to its app
@@ -249,6 +267,7 @@ Claude Code ──hook──▶ ~/.remindo/bin/remindo ──HTTP 127.0.0.1─�
 swift build                                  # debug build
 .build/debug/Remindo                         # run without installing
 .build/debug/Remindo --snapshot /tmp/shots   # render every notch state to PNGs
+.build/debug/Remindo --readme-shots docs/images  # regenerate the README pictures and GIFs
 ./scripts/build.sh                           # build/Remindo.app
 ```
 

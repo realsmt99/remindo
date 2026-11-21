@@ -13,6 +13,9 @@ enum RemindoMain {
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             exit(SnapshotRenderer.renderAll(to: URL(fileURLWithPath: args[i + 1])) ? 0 : 1)
         }
+        if let i = args.firstIndex(of: "--readme-shots"), i + 1 < args.count {
+            exit(SnapshotRenderer.renderReadme(to: URL(fileURLWithPath: args[i + 1])) ? 0 : 1)
+        }
         if args.contains("--unregister-login") {
             try? LoginItem.set(false)
             exit(0)

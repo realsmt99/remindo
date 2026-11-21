@@ -80,7 +80,7 @@ enum SnapshotRenderer {
         .frame(width: NotchWindowController.windowSize.width, height: NotchWindowController.windowSize.height)
     }
 
-    private static func write<V: View>(_ view: V, to url: URL) -> Bool {
+    static func write<V: View>(_ view: V, to url: URL) -> Bool {
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,

@@ -9,7 +9,7 @@ struct ShimmerText: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
+            let t = ArcadeClock.now ?? context.date.timeIntervalSinceReferenceDate
             let phase = CGFloat((t / 1.8).truncatingRemainder(dividingBy: 1))
             let x = -0.6 + phase * 2.2
             Text(text)
