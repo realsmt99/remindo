@@ -40,13 +40,23 @@ your Mac, so you never leave Claude waiting.
 
 ---
 
+## Compatibility
+
+| | Supported |
+|---|---|
+| **macOS** | 14 Sonoma, 15 Sequoia, 26 Tahoe, and newer |
+| **Macs** | Apple Silicon (M1 to M4 and later) and Intel: one universal app |
+| **Screens** | MacBooks with a notch get the full notch effect; other displays get a notch-style pill at the top |
+| **Claude Code** | In any terminal (Terminal, iTerm2, Ghostty, Warp…), in VS Code / Cursor, and in the Claude desktop app |
+
 ## Requirements
 
-- A Mac on **macOS 14 (Sonoma) or newer**. A notch is nice but optional: on other screens
-  Remindo draws a notch-style pill at the top.
-- **Xcode Command Line Tools** (for Swift). Install with `xcode-select --install`.
+- **macOS 14 or newer**, on any Mac (Apple Silicon or Intel).
+- **Xcode Command Line Tools**, only to build from source: `xcode-select --install`.
 - **Claude Code** ([install it](https://docs.anthropic.com/en/docs/claude-code)).
-- `jq`, which macOS 15+ already includes. On macOS 14: `brew install jq`.
+
+Nothing else: linking Claude Code uses `jq` when it's installed, and macOS's built-in
+JavaScript engine otherwise.
 
 ## Install (2 minutes)
 

@@ -218,6 +218,7 @@ _claude_settings() { print -r -- "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.j
 
 _jq() {
   local bin
+  [[ -n ${REMINDO_NO_JQ:-} ]] && return 1  # testing: force the JavaScript fallback
   for bin in "$(command -v jq 2>/dev/null)" /usr/bin/jq /opt/homebrew/bin/jq /usr/local/bin/jq; do
     [[ -n $bin && -x $bin ]] && { print -r -- "$bin"; return 0; }
   done
@@ -226,14 +227,55 @@ _jq() {
 }
 
 # Rewrites settings.json in place (keeps symlinks and permissions), after a backup.
+# Same edits as JQ_INSTALL / JQ_UNINSTALL, in JavaScript for Macs without jq (macOS 14).
+# Runs in osascript's JavaScript engine, which every Mac has; prints the new settings.json.
+JXA_EDIT='
+function run(argv) {
+  const [mode, path, cmd, eventsJSON] = argv;
+  const text = ObjC.unwrap($.NSString.stringWithContentsOfFileEncodingError(path, $.NSUTF8StringEncoding, null));
+  const obj = JSON.parse(text || "{}");
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) throw new Error("settings.json is not a JSON object");
+  const signature = /remindo\W?\s+hook\s+claude-code\s*$/;
+  const isGroup = g => g !== null && typeof g === "object" && Array.isArray(g.hooks);
+  const ours = h => h !== null && typeof h === "object" &&
+    (String(h.command || "") === cmd || signature.test(String(h.command || "")));
+  const strip = groups => groups
+    .map(g => isGroup(g) ? Object.assign({}, g, { hooks: g.hooks.filter(h => !ours(h)) }) : g)
+    .filter(g => !isGroup(g) || g.hooks.length > 0);
+  const hooksOK = obj.hooks !== null && typeof obj.hooks === "object" && !Array.isArray(obj.hooks);
+  if (mode === "install") {
+    if (!hooksOK) obj.hooks = {};
+    for (const e of JSON.parse(eventsJSON)) {
+      const groups = Array.isArray(obj.hooks[e.name]) ? strip(obj.hooks[e.name]) : [];
+      const hook = { type: "command", command: cmd, timeout: 10 };
+      if (e.async) hook.async = true;
+      const group = { hooks: [hook] };
+      if (e.matcher) group.matcher = e.matcher;
+      groups.push(group);
+      obj.hooks[e.name] = groups;
+    }
+  } else if (hooksOK) {
+    for (const k of Object.keys(obj.hooks)) {
+      if (!Array.isArray(obj.hooks[k])) continue;
+      obj.hooks[k] = strip(obj.hooks[k]);
+      if (obj.hooks[k].length === 0) delete obj.hooks[k];
+    }
+    if (Object.keys(obj.hooks).length === 0) delete obj.hooks;
+  }
+  return JSON.stringify(obj, null, 2);
+}
+'
+
+# Rewrites settings.json in place (keeps symlinks and permissions), after a backup.
+# Uses jq when available, otherwise the built-in JavaScript engine (osascript).
 _edit_settings() {
-  local program=$1 label=$2
-  local settings jq_bin backup tmp cmd
+  local mode=$1 label=$2
+  local settings jq_bin backup tmp cmd program
   settings=$(_claude_settings)
-  jq_bin=$(_jq) || return 1
+  jq_bin=$(_jq 2>/dev/null) || jq_bin=
   mkdir -p "${settings:h}"
   [[ -s $settings ]] || print '{}' > "$settings"
-  if ! "$jq_bin" -e 'type == "object"' "$settings" >/dev/null 2>&1; then
+  if [[ -n $jq_bin ]] && ! "$jq_bin" -e 'type == "object"' "$settings" >/dev/null 2>&1; then
     print -u2 "remindo: $settings isn't valid JSON; leaving it untouched."
     return 1
   fi
@@ -242,8 +284,16 @@ _edit_settings() {
   # Always single-quoted for the shell Claude Code runs hooks through (embedded ' escaped as '\'').
   cmd="'${SELF//\'/\'\\\'\'}' hook claude-code"
   tmp=$(mktemp "${TMPDIR:-/tmp}/remindo-settings.XXXXXX") || return 1
-  if "$jq_bin" --indent 2 --arg cmd "$cmd" --argjson events "$CLAUDE_EVENTS" "$program" "$settings" > "$tmp" \
-      && "$jq_bin" -e 'type == "object"' "$tmp" >/dev/null 2>&1; then
+  local made=0
+  if [[ -n $jq_bin ]]; then
+    [[ $mode == install ]] && program=$JQ_INSTALL || program=$JQ_UNINSTALL
+    "$jq_bin" --indent 2 --arg cmd "$cmd" --argjson events "$CLAUDE_EVENTS" "$program" "$settings" > "$tmp" \
+      && "$jq_bin" -e 'type == "object"' "$tmp" >/dev/null 2>&1 && made=1
+  else
+    /usr/bin/osascript -l JavaScript -e "$JXA_EDIT" "$mode" "$settings" "$cmd" "$CLAUDE_EVENTS" > "$tmp" 2>/dev/null \
+      && [[ $(head -c 1 "$tmp") == "{" ]] && made=1
+  fi
+  if (( made )); then
     if cat "$tmp" > "$settings"; then
       rm -f "$tmp"
       print "✓ $label ($settings)"
@@ -255,7 +305,7 @@ _edit_settings() {
     return 1
   fi
   rm -f "$tmp"
-  print -u2 "remindo: couldn't update $settings (your backup is at $backup)"
+  print -u2 "remindo: couldn't update $settings; is it valid JSON? (your backup is at $backup)"
   return 1
 }
 
@@ -264,12 +314,12 @@ cmd_install_claude() {
     print -u2 "remindo: expected the CLI at $SELF (open Remindo once, or run scripts/install.sh)."
     return 1
   fi
-  _edit_settings "$JQ_INSTALL" "Linked Claude Code to Remindo" || return 1
+  _edit_settings install "Linked Claude Code to Remindo" || return 1
   print "  New Claude Code sessions (terminal, IDE or the Claude app) will light up the notch."
 }
 
 cmd_uninstall_claude() {
-  _edit_settings "$JQ_UNINSTALL" "Removed Remindo's hooks from Claude Code"
+  _edit_settings uninstall "Removed Remindo's hooks from Claude Code"
 }
 
 cmd_doctor() {
@@ -281,7 +331,7 @@ cmd_doctor() {
   print -n "• Remindo app on $BASE: "; [[ $code == 200 ]] && print "running" || { print "not reachable"; ok=0; }
   print -n "• Claude Code hooks in $settings: "
   if [[ -r $settings ]] && grep -q '/.remindo/bin/remindo' "$settings"; then print "linked"; else print "not linked (run: remindo install-claude)"; ok=0; fi
-  print -n "• jq: "; command -v jq >/dev/null 2>&1 && print "ok" || print "missing (only needed to link Claude Code)"
+  print -n "• jq: "; _jq >/dev/null 2>&1 && print "ok" || print "not installed (fine: the built-in JavaScript engine is used instead)"
   (( ok )) && print "All good ✨" || return 1
 }
 

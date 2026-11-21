@@ -5,9 +5,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-echo "→ Compiling Remindo (release)…"
-swift build -c release --product Remindo
-BIN_DIR="$(swift build -c release --show-bin-path)"
+# Universal by default (Apple Silicon + Intel). REMINDO_NATIVE=1 builds only for this Mac (faster).
+if [[ "${REMINDO_NATIVE:-0}" == "1" ]]; then
+  ARCH_FLAGS=()
+  echo "→ Compiling Remindo (release, this Mac only)…"
+else
+  ARCH_FLAGS=(--arch arm64 --arch x86_64)
+  echo "→ Compiling Remindo (release, universal: Apple Silicon + Intel)…"
+fi
+swift build -c release --product Remindo ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
+BIN_DIR="$(swift build -c release ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-bin-path)"
 
 APP="$ROOT/build/Remindo.app"
 ICONSET="$ROOT/build/AppIcon.iconset"
